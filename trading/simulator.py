@@ -2,13 +2,7 @@ from typing import Dict, Any, Optional, List
 import pandas as pd
 from datetime import datetime
 import logging
-import sys
-import os
-
-# 프로젝트 루트 디렉토리를 Python 경로에 추가
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from trading.dummy_account import DummyAccount
+from .dummy_account import DummyAccount
 from strategies.base_strategy import BaseStrategy
 from risk_management.base_risk import BaseRiskManager
 
