@@ -1,0 +1,48 @@
+exchange:
+  name: 'binance'
+  api_key: 'your_api_key'
+  api_secret: 'your_api_secret'
+
+trading:
+  symbol: 'BTCUSDT'
+  interval: '15m'
+  max_positions: 1
+
+strategies:
+  - name: 'RSI'
+    params:
+      rsi_period: 14
+      oversold_threshold: 20
+      overbought_threshold: 80
+  - name: 'MACD'
+    params:
+      fast_period: 12
+      slow_period: 26
+      signal_period: 9
+  - name: 'MA_Crossover'
+    params:
+      fast_ma_period: 10
+      slow_ma_period: 30
+      ma_type: 'ema'
+
+risk_management:
+  max_leverage: 10
+  risk_per_trade: 0.01
+  atr_period: 14
+  stop_loss_atr_multiplier: 2
+  take_profit_atr_multiplier: 4
+  trailing_stop_start: 0.02
+
+backtest:
+  start_date: '2023-01-01'
+  end_date: '2023-12-31'
+  initial_balance: 10000
+  commission: 0.0004
+
+data:
+  db_path: 'data/market_data.db'
+  cache_period: 30  # days
+
+logging:
+  level: 'INFO'
+  file: 'logs/trading.log' 
