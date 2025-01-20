@@ -1,54 +1,55 @@
 exchange:
-  name: 'binance'
-  api_key: 'your_api_key'
-  api_secret: 'your_api_secret'
+  name: "binance"
+  testnet: true
 
 trading:
-  symbol: 'BTCUSDT'
-  interval: '15m'
-  max_positions: 1
+  symbol: "BTCUSDT"
+  interval: "1m"
+  base_currency: "BTC"
+  quote_currency: "USDT"
 
 strategies:
-  - name: 'RSI'
-    params:
-      rsi_period: 14
-      oversold_threshold: 20
-      overbought_threshold: 80
-  - name: 'MACD'
-    params:
-      fast_period: 12
-      slow_period: 26
-      signal_period: 9
-  # - name: 'MA_Crossover'
-  #   params:
-  #     fast_ma_period: 10
-  #     slow_ma_period: 30
-  #     ma_type: 'ema'
-  - name: 'bollinger'
-    params:
-      window: 15
-      std_dev: 2.0
-      entry_threshold: 1.0
-      exit_threshold: 0.5
+  ma_crossover:
+    short_window: 10
+    long_window: 20
+    
+  rsi:
+    period: 14
+    oversold: 30
+    overbought: 70
+    
+  # macd:
+  #   fast_period: 12
+  #   slow_period: 26
+  #   signal_period: 9
+    
+  bollinger:
+    window: 20
+    std_dev: 2.0
+    entry_threshold: 1.0
+    exit_threshold: 0.5
 
 risk_management:
-  max_leverage: 10
-  risk_per_trade: 0.01
-  atr_period: 14
-  stop_loss_atr_multiplier: 2
-  take_profit_atr_multiplier: 4
-  trailing_stop_start: 0.02
+  risk_per_trade: 0.01  # 1%
+  max_leverage: 3
+  margin_ratio: 0.1  # 10%
+  stop_loss_atr_multiplier: 2.0
+  take_profit_atr_multiplier: 3.0
+  trailing_stop_start: 0.01  # 1%
 
 backtest:
-  start_date: '2023-01-01'
-  end_date: '2023-12-31'
+  start_date: "2023-01-01"
+  end_date: "2023-12-31"
   initial_balance: 10000
-  commission: 0.0004
 
-data:
-  db_path: 'data/market_data.db'
-  cache_period: 30  # days
+simulation:
+  initial_balance: 1000
+  commission_rate: 0.001  # 0.1%
 
 logging:
-  level: 'INFO'
-  file: 'logs/trading.log' 
+  level: "INFO"
+  file: "logs/trading.log"
+
+database:
+  path: "data/market_data.db"
+  cache_size: 1000 

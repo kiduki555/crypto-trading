@@ -8,10 +8,15 @@
   - MA Crossover Strategy
   - RSI Strategy
   - MACD Strategy
+  - Bollinger Bands Strategy
 - 백테스팅 시스템
   - 과거 데이터 기반 전략 테스트
   - 상세한 성과 분석 (수익률, 승률, 샤프 비율 등)
   - 자본금 변화 및 드로다운 시각화
+- 실시간 시뮬레이션
+  - Binance WebSocket 기반 실시간 데이터
+  - 더미 계정을 통한 모의 거래
+  - 실시간 손익 및 포지션 추적
 - 리스크 관리
   - 동적 포지션 사이징
   - 스탑로스/익절 자동 설정
@@ -80,12 +85,6 @@ pip install -r requirements.txt
 
 ## 사용 방법
 
-### 데이터베이스 초기화
-시스템 최초 실행 시 `data/market_data.db` 파일이 자동으로 생성되며, 필요한 테이블들이 자동으로 설정됩니다. 수동으로 데이터베이스를 초기화하려면:
-```bash
-python main.py --mode init-db
-```
-
 ### 백테스팅 실행
 ```bash
 # 기본 설정으로 백테스팅 실행
@@ -96,7 +95,45 @@ python main.py --mode backtest --config config/settings.yaml --start-date 2023-0
 
 # 특정 전략으로 백테스팅 실행
 python main.py --mode backtest --config config/settings.yaml --strategy ma_crossover
+
+# 여러 전략 동시 실행
+python main.py --mode backtest --config config/settings.yaml --strategy "bollinger,rsi,ma_crossover"
 ```
+
+백테스팅에서 여러 전략을 사용할 경우, 시뮬레이션과 동일하게 과반수 기준으로 매매 결정이 이루어집니다.
+백테스팅 결과는 `results/` 디렉토리에 저장되며, 다음과 같은 정보를 포함합니다:
+- 전체 거래 내역
+- 수익률 분석
+- 포지션별 성과
+- 월별 수익률
+- 드로다운 분석
+
+### 실시간 시뮬레이션 실행
+```bash
+# 기본 설정으로 시뮬레이션 실행 (BTC/USDT, 1분봉)
+python main.py --mode simulation --config config/settings.yaml --strategy bollinger
+
+# 다른 심볼과 시간 간격으로 실행
+python main.py --mode simulation --config config/settings.yaml --strategy rsi --symbol ethusdt --interval 5m
+
+# 여러 전략 동시 실행 (쉼표로 구분)
+python main.py --mode simulation --config config/settings.yaml --strategy "bollinger,rsi,ma_crossover"
+
+# 기존 계정으로 시뮬레이션 재시작
+python main.py --mode simulation --config config/settings.yaml --account-id dummy_12345678
+```
+
+시뮬레이션 실행 시 필요한 데이터베이스 테이블이 자동으로 생성됩니다.
+여러 전략을 동시에 사용할 경우, 각 전략의 신호를 종합하여 하나의 매매 결정을 내립니다:
+- 과반수의 전략이 매수 신호를 보내면 매수
+- 과반수의 전략이 매도 신호를 보내면 매도
+- 하나 이상의 전략이 청산 신호를 보내면 청산
+- 그 외의 경우 포지션 유지
+
+예를 들어, 3개의 전략을 사용할 경우:
+- 2개 이상의 전략이 매수 신호를 보내면 매수 포지션 진입
+- 2개 이상의 전략이 매도 신호를 보내면 매도 포지션 진입
+- 1개 이상의 전략이 청산 신호를 보내면 현재 포지션 청산
 
 ### 실시간 거래 실행
 ```bash
@@ -128,21 +165,41 @@ pkill -f "python main.py"
 3. `calculate_signals` 메서드 구현
 4. `config/settings.yaml`에 전략 설정 추가
 
-예시:
+예시 (볼린저 밴드 전략):
 ```python
 from .base_strategy import BaseStrategy
 
-class NewStrategy(BaseStrategy):
+class BollingerStrategy(BaseStrategy):
     def __init__(self, params):
         super().__init__(params)
-        # 전략 파라미터 초기화
-
+        self.window = params.get('window', 20)
+        self.std_dev = params.get('std_dev', 2.0)
+        
     def calculate_signals(self, data):
-        # 매매 신호 계산 로직 구현
-        return {
-            'direction': 'long/short/None',
-            'strength': 0.0
-        }
+        # 볼린저 밴드 계산
+        bb = ta.volatility.BollingerBands(
+            close=data['close'],
+            window=self.window,
+            window_dev=self.std_dev
+        )
+        
+        # 매매 신호 생성
+        if price < lower_band:
+            return {'direction': 'long', 'strength': 0.8}
+        elif price > upper_band:
+            return {'direction': 'short', 'strength': 0.8}
+        
+        return {'direction': None, 'strength': 0}
+```
+
+설정 예시:
+```yaml
+strategies:
+  bollinger:
+    window: 20
+    std_dev: 2.0
+    entry_threshold: 1.0
+    exit_threshold: 0.5
 ```
 
 ## 리스크 관리
@@ -167,3 +224,66 @@ class NewStrategy(BaseStrategy):
 - 자본금 변화 곡선
 - 드로다운 차트
 - 월별 수익률 히트맵
+
+## 데이터베이스 구조
+
+### dummy_accounts
+- 시뮬레이션용 더미 계정 정보
+- 초기 자본금 및 현재 잔고 관리
+
+### dummy_positions
+- 현재 보유 중인 포지션 정보
+- 진입가, 현재가, 미실현 손익 등
+
+### dummy_trades
+- 거래 내역
+- 실현 손익, 수수료, 사용된 전략 등
+
+## 전략 설정
+
+`config/settings.yaml` 파일에서 각 전략의 파라미터를 설정할 수 있습니다:
+
+```yaml
+strategies:
+  ma_crossover:
+    short_window: 10
+    long_window: 20
+    
+  rsi:
+    period: 14
+    oversold: 30
+    overbought: 70
+    
+  macd:
+    fast_period: 12
+    slow_period: 26
+    signal_period: 9
+    
+  bollinger:
+    window: 20
+    std_dev: 2.0
+    entry_threshold: 1.0
+    exit_threshold: 0.5
+```
+
+각 전략의 주요 파라미터:
+
+### MA Crossover Strategy
+- `short_window`: 단기 이동평균 기간
+- `long_window`: 장기 이동평균 기간
+
+### RSI Strategy
+- `period`: RSI 계산 기간
+- `oversold`: 과매도 기준값
+- `overbought`: 과매수 기준값
+
+### MACD Strategy
+- `fast_period`: 단기 EMA 기간
+- `slow_period`: 장기 EMA 기간
+- `signal_period`: 시그널 라인 기간
+
+### Bollinger Bands Strategy
+- `window`: 이동평균 기간
+- `std_dev`: 표준편차 승수
+- `entry_threshold`: 진입 임계값
+- `exit_threshold`: 청산 임계값
