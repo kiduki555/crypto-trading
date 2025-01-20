@@ -5,6 +5,7 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import pandas as pd
 
+from strategies.bollinger_strategy import BollingerStrategy
 from strategies.rsi_strategy import RSIStrategy
 from strategies.macd_strategy import MACDStrategy
 from strategies.ma_crossover_strategy import MACrossoverStrategy
@@ -144,7 +145,8 @@ class TradingSystem:
         strategy_map = {
             'RSI': RSIStrategy,
             'MACD': MACDStrategy,
-            'MA_Crossover': MACrossoverStrategy
+            'MA_Crossover': MACrossoverStrategy,
+            'bollinger': BollingerStrategy
         }
         
         strategies = []
