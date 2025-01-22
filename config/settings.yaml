@@ -35,6 +35,48 @@ strategies:
     entry_threshold: 1.0
     exit_threshold: 0.5
 
+  supertrend_ichimoku_dmi:
+    # SuperTrend 파라미터
+    st_ichi_multiplier: 1.0
+    st_ichi_length: 8
+    st_dmi_multiplier: 1.0
+    st_dmi_length: 8
+    
+    # DMI 파라미터
+    dmi_length: 14
+    adx_smoothing: 14
+    strong_trend: 25
+    weak_trend: 20
+    
+    # Ichimoku 파라미터
+    conversion_periods: 9
+    base_periods: 26
+    lagging_span2_periods: 52
+    displacement: 26
+
+    # RSI 파라미터
+    rsi_length: 10
+    rsi_overbought: 75
+    rsi_oversold: 25
+
+    # Stochastic 파라미터
+    stoch_k: 14
+    stoch_d: 3
+    stoch_smooth: 3
+    stoch_overbought: 80
+    stoch_oversold: 20
+
+    # MACD 파라미터
+    macd_fast: 12
+    macd_slow: 26
+    macd_signal: 9
+
+    # 리스크 관리 파라미터
+    stop_loss_atr: 0.8
+    take_profit_atr: 1.6
+    trailing_stop_atr: 1.2
+    max_risk_per_trade: 0.02
+
 risk_management:
   risk_per_trade: 0.01 # 1%
   max_leverage: 3

@@ -10,6 +10,7 @@ from strategies.bollinger_strategy import BollingerStrategy
 from strategies.rsi_strategy import RSIStrategy
 from strategies.macd_strategy import MACDStrategy
 from strategies.ma_crossover_strategy import MACrossoverStrategy
+from strategies.supertrend_ichimoku_dmi_strategy import SupertrendIchimokuDmiStrategy
 from risk_management.dynamic_risk import DynamicRiskManagement
 from data.data_collector import DataCollector
 from data.data_loader import DataLoader
@@ -146,10 +147,11 @@ class TradingSystem:
     def _initialize_strategies(self) -> List[Any]:
         """전략 초기화"""
         strategy_map = {
-            'ma_crossover': MACrossoverStrategy,
+            # 'ma_crossover': MACrossoverStrategy,
             'rsi': RSIStrategy,
-            'macd': MACDStrategy,
-            'bollinger': BollingerStrategy
+            # 'macd': MACDStrategy,
+            # 'bollinger': BollingerStrategy,
+            'supertrend_ichimoku_dmi': SupertrendIchimokuDmiStrategy
         }
         
         strategies = []
