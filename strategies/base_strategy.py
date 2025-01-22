@@ -3,26 +3,26 @@ from typing import Dict, Any
 import pandas as pd
 import numpy as np
 import ta
+from backtesting import Strategy
 
-class BaseStrategy(ABC):
-    def __init__(self, params: Dict[str, Any]):
+class BaseStrategy(Strategy):
+    def __init__(self, broker=None, data=None, params=None):
         """
         기본 전략 클래스 초기화
-        
-        Args:
-            params: 전략 파라미터
         """
-        self.params = params
+        super().__init__(broker, data, params or {})
+        
+    def init(self):
+        """
+        전략 초기화 - backtesting 패키지 요구사항
+        """
+        pass
         
     @abstractmethod
-    def calculate_signals(self, data: pd.DataFrame) -> Dict[str, Any]:
+    def next(self):
         """
-        매매 신호 계산
-        
-        Args:
-            data: OHLCV 데이터
-        Returns:
-            매매 신호 정보
+        매 캔들마다 호출되는 메서드 - backtesting 패키지 요구사항
+        여기서 매매 신호를 생성하고 포지션을 진입/청산
         """
         pass
     
@@ -35,7 +35,7 @@ class BaseStrategy(ABC):
         Returns:
             유효성 여부
         """
-        required_columns = ['open', 'high', 'low', 'close', 'volume']
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
         return all(col in data.columns for col in required_columns)
 
     def get_position_size(self, account_balance: float, risk_per_trade: float) -> float:

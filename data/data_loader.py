@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timedelta
 import ccxt
 import sqlite3
+from binance.client import Client
 
 class DataLoader:
     def __init__(self, config: Dict[str, Any]):
@@ -15,9 +16,8 @@ class DataLoader:
             config: 설정 정보
         """
         self.config = config
-        self.exchange_id = config.get('exchange', 'binance')
-        self.exchange = getattr(ccxt, self.exchange_id)()
-        self.db_path = config.get('db_path', 'data/market_data.db')
+        self.db_path = config.get('database', 'data/market_data.db')
+        self.client = Client(config.get('api_key', ''), config.get('api_secret', ''))
         self.logger = logging.getLogger(__name__)
 
     def fetch_historical_data(self, 
@@ -49,19 +49,29 @@ class DataLoader:
             if end_time is None:
                 end_time = datetime.now()
 
-            ohlcv = self.exchange.fetch_ohlcv(
+            # Binance API의 klines 사용
+            klines = self.client.get_historical_klines(
                 symbol,
                 timeframe,
-                int(start_time.timestamp() * 1000),
-                limit=1000
+                start_time.strftime("%d %b %Y %H:%M:%S"),
+                end_time.strftime("%d %b %Y %H:%M:%S")
             )
 
             df = pd.DataFrame(
-                ohlcv,
-                columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                klines,
+                columns=['timestamp', 'open', 'high', 'low', 'close', 'volume',
+                        'close_time', 'quote_volume', 'trades', 'taker_buy_base',
+                        'taker_buy_quote', 'ignore']
             )
             
+            # 필요한 컬럼만 선택
+            df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+            
+            # 데이터 타입 변환
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            for col in ['open', 'high', 'low', 'close', 'volume']:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            
             df.set_index('timestamp', inplace=True)
             
             # 데이터베이스에 저장
@@ -83,6 +93,22 @@ class DataLoader:
         """
         try:
             conn = sqlite3.connect(self.db_path)
+            
+            # 테이블이 없는 경우 생성
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS market_data (
+                    timestamp DATETIME,
+                    symbol TEXT,
+                    timeframe TEXT,
+                    open REAL,
+                    high REAL,
+                    low REAL,
+                    close REAL,
+                    volume REAL,
+                    PRIMARY KEY (timestamp, symbol, timeframe)
+                )
+            """)
+            
             query = f"""
                 SELECT * FROM market_data 
                 WHERE symbol = '{symbol}' 
@@ -201,32 +227,11 @@ class DataLoader:
             # 데이터가 없으면 API에서 가져오기
             self.logger.info(f"Fetching historical data for {symbol} from {extended_start_time} to {end_time}")
             
-            # 1000개 제한이 있으므로 기간을 나누어 가져오기
-            current_start = extended_start_time
-            while current_start < end_time:
-                ohlcv = self.exchange.fetch_ohlcv(
-                    symbol,
-                    timeframe,
-                    int(current_start.timestamp() * 1000),
-                    limit=1000
-                )
-                
-                if not ohlcv:
-                    break
-                    
-                df = pd.DataFrame(
-                    ohlcv,
-                    columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
-                )
-                
-                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-                df.set_index('timestamp', inplace=True)
-                
-                # 데이터베이스에 저장
-                self._save_to_database(df, symbol, timeframe)
-                
-                # 다음 구간으로 이동
-                current_start = df.index[-1].to_pydatetime() + timedelta(minutes=1)
+            df = self.fetch_historical_data(symbol, timeframe, extended_start_time, end_time)
+            
+            if df.empty:
+                self.logger.error(f"Failed to fetch historical data for {symbol}")
+                return False
                 
             self.logger.info(f"Successfully fetched and stored historical data for {symbol}")
             return True

@@ -5,6 +5,7 @@ from datetime import datetime
 import logging
 from strategies.base_strategy import BaseStrategy
 from risk_management.base_risk import BaseRiskManagement
+from backtesting import Backtest, Strategy
 
 class Backtester:
     def __init__(self,
@@ -41,37 +42,14 @@ class Backtester:
             백테스트 결과 (딕셔너리 형태)
         """
         try:
-            # 초기 상태 설정
-            self.balance = self.initial_balance
-            self.positions = []
-            self.trades = []
-            
-            # 데이터의 각 행에 대해 반복
-            for index, row in data.iterrows():
-                # 현재 시점까지의 데이터로 전략 신호 계산
-                signals = [
-                    strategy.calculate_signals(data.loc[:index])  # 각 전략의 신호 계산
-                    for strategy in self.strategies
-                ]
-                
-                # 전략 신호 검증
-                consensus_signal = self._validate_signals(signals)  # 다수의 전략 신호를 종합
-                
-                # 포지션 업데이트 및 청산 검사
-                self._update_positions(row)  # 현재 포지션 상태 업데이트
-                
-                # 새로운 포지션 진입 검사
-                if consensus_signal and not self.positions:
-                    self._open_position(consensus_signal, row, index)  # 신호에 따라 포지션 열기
-            
-            # 최종 포지션 청산
-            if self.positions:
-                self._close_position(data.iloc[-1], data.index[-1], "End of Period")  # 마지막 포지션 청산
-            
-            return self._generate_results()  # 백테스트 결과 생성 및 반환
-            
+            # Backtest 인스턴스 생성
+            bt = Backtest(data, self.strategies[0], cash=self.initial_balance, commission=self.commission)
+            # 백테스트 실행
+            stats = bt.run()
+            # 결과 반환
+            return stats._asdict()
         except Exception as e:
-            self.logger.error(f"Error in backtest: {str(e)}")  # 오류 발생 시 로깅
+            self.logger.error(f"Error in backtest: {str(e)}")
             raise
 
     def _validate_signals(self, signals: List[Dict[str, Any]]) -> str:

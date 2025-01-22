@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import pandas as pd
+from backtesting import Backtest
 
 from strategies.bollinger_strategy import BollingerStrategy
 from strategies.rsi_strategy import RSIStrategy
@@ -13,11 +14,10 @@ from risk_management.dynamic_risk import DynamicRiskManagement
 from data.data_collector import DataCollector
 from data.data_loader import DataLoader
 from trading.executor import TradingExecutor
-from backtesting.backtester import Backtester
-from backtesting.performance import PerformanceAnalyzer
 from trading.simulator import TradingSimulator
 from risk_management.base_risk import BaseRiskManager
 from data.websocket_client import BinanceWebSocket
+from custom_backtesting.performance import PerformanceAnalyzer
 
 class TradingSystem:
     def __init__(self, config_path: str):
@@ -101,27 +101,27 @@ class TradingSystem:
                 end_time=end_date
             )
             
-            # 백테스터 초기화 및 실행
-            backtester = Backtester(
-                strategies=self.strategies,
-                risk_manager=self.risk_manager,
-                initial_balance=self.config['backtest']['initial_balance'],
-                commission=self.config['backtest']['commission']
-            )
+            # 필요한 컬럼만 선택하고 이름 변경
+            data = data[['open', 'high', 'low', 'close', 'volume']]
+            data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
             
-            results = backtester.run(data)
-            
-            # 성과 분석
-            analyzer = PerformanceAnalyzer(results)
-            metrics = analyzer.calculate_metrics()
-            
-            # 결과 출력
-            self._print_backtest_results(metrics)
-            
-            # 차트 생성
-            analyzer.plot_equity_curve()
-            analyzer.plot_drawdown()
-            analyzer.plot_monthly_returns()
+            # 각 전략에 대해 백테스트 실행
+            for strategy in self.strategies:
+                self.logger.info(f"Running backtest for {strategy.__name__}")
+                
+                # Backtest 인스턴스 생성 및 실행
+                bt = Backtest(
+                    data,
+                    strategy,
+                    cash=self.config['backtest']['initial_balance'],
+                    commission=self.config['backtest']['commission']
+                )
+                
+                # 백테스트 실행
+                results = bt.run()
+                
+                # 결과 출력
+                self._print_backtest_results(results)
             
         except Exception as e:
             self.logger.error(f"Error in backtest: {str(e)}")
@@ -146,29 +146,61 @@ class TradingSystem:
     def _initialize_strategies(self) -> List[Any]:
         """전략 초기화"""
         strategy_map = {
-            'RSI': RSIStrategy,
-            'MACD': MACDStrategy,
-            'MA_Crossover': MACrossoverStrategy,
+            'ma_crossover': MACrossoverStrategy,
+            'rsi': RSIStrategy,
+            'macd': MACDStrategy,
             'bollinger': BollingerStrategy
         }
         
         strategies = []
-        for strategy_config in self.config['strategies']:
-            strategy_class = strategy_map[strategy_config['name']]
-            strategies.append(strategy_class(strategy_config['params']))
+        for strategy_name, params in self.config['strategies'].items():
+            if strategy_name in strategy_map:
+                strategy_class = strategy_map[strategy_name]
+                # 전략 클래스의 클래스 변수 업데이트
+                for param_name, param_value in params.items():
+                    setattr(strategy_class, param_name, param_value)
+                strategies.append(strategy_class)
             
         return strategies
 
-    def _print_backtest_results(self, metrics: Dict[str, Any]):
+    def _print_backtest_results(self, results: pd.Series):
         """백테스트 결과 출력"""
         print("\n=== Backtest Results ===")
-        print(f"Total Return: {metrics['total_return_pct']:.2f}%")
-        print(f"Win Rate: {metrics['win_rate']:.2f}%")
-        print(f"Total Trades: {metrics['total_trades']}")
-        print(f"Profit Factor: {metrics['profit_factor']:.2f}")
-        print(f"Sharpe Ratio: {metrics['sharpe_ratio']:.2f}")
-        print(f"Max Drawdown: {metrics['max_drawdown']:.2f}%")
-        print(f"Average Trade Duration: {metrics['avg_trade_duration']}")
+        print(f"[수익률]")
+        print(f"총 수익률: {results['Return [%]']:.2f}%")
+        print(f"연간 수익률: {results['Return (Ann.) [%]']:.2f}%")
+        print(f"최대 낙폭: {results['Max. Drawdown [%]']:.2f}%")
+        print(f"수익 팩터: {results['Profit Factor']:.2f}")
+        
+        print(f"\n[거래 통계]")
+        print(f"총 거래 횟수: {results['# Trades']}")
+        print(f"승률: {results['Win Rate [%]']:.2f}%")
+        print(f"평균 거래 수익: {results['Avg. Trade [%]']:.2f}%")
+        print(f"최대 단일 수익: {results['Best Trade [%]']:.2f}%")
+        print(f"최대 단일 손실: {results['Worst Trade [%]']:.2f}%")
+        print(f"평균 거래 시간: {results['Avg. Trade Duration']}")
+        
+        print(f"\n[위험 지표]")
+        print(f"샤프 비율: {results['Sharpe Ratio']:.2f}")
+        
+        print(f"\n[포지션 정보]")
+        trades = results._trades
+        if len(trades) > 0:
+            longs = len(trades[trades['Size'] > 0])
+            shorts = len(trades[trades['Size'] < 0])
+            total_trades = len(trades)
+            
+            print(f"롱 포지션 비율: {longs/total_trades*100:.1f}%")
+            print(f"숏 포지션 비율: {shorts/total_trades*100:.1f}%")
+            
+            if longs > 0:
+                long_wins = len(trades[(trades['Size'] > 0) & (trades['PnL'] > 0)])
+                print(f"롱 승률: {long_wins/longs*100:.1f}%")
+            
+            if shorts > 0:
+                short_wins = len(trades[(trades['Size'] < 0) & (trades['PnL'] > 0)])
+                print(f"숏 승률: {short_wins/shorts*100:.1f}%")
+        
         print("=====================\n")
 
 
@@ -206,6 +238,10 @@ def main():
                       help='거래 심볼 (예: btcusdt)')
     parser.add_argument('--interval', default='1m',
                       help='캔들스틱 간격 (예: 1m, 5m, 15m, 1h)')
+    parser.add_argument('--start-date',
+                      help='백테스트 시작 날짜 (YYYY-MM-DD)')
+    parser.add_argument('--end-date',
+                      help='백테스트 종료 날짜 (YYYY-MM-DD)')
     args = parser.parse_args()
     
     # 로깅 설정
@@ -217,6 +253,16 @@ def main():
     
     # 설정 로드
     config = load_config(args.config)
+    
+    # 백테스트 날짜 설정이 있으면 config에 추가
+    if args.start_date:
+        if 'backtest' not in config:
+            config['backtest'] = {}
+        config['backtest']['start_date'] = args.start_date
+    if args.end_date:
+        if 'backtest' not in config:
+            config['backtest'] = {}
+        config['backtest']['end_date'] = args.end_date
     
     # 전략 및 리스크 관리자 생성
     risk_manager = BaseRiskManager(config['risk_management'])
@@ -270,13 +316,12 @@ def main():
             
     elif args.mode == 'backtest':
         # 백테스팅 모드
-        # TODO: Implement backtest mode
-        pass
-        
+        trading_system = TradingSystem(args.config)
+        trading_system.run_backtest()
     elif args.mode == 'live':
         # 실시간 거래 모드
-        # TODO: Implement live trading mode
-        pass
+        trading_system = TradingSystem(args.config)
+        trading_system.run_live_trading()
 
 if __name__ == '__main__':
     main()

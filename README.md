@@ -57,12 +57,14 @@ crypto-trading/
 ## 설치 방법
 
 1. 저장소 클론
+
 ```bash
 git clone https://github.com/kiduki555/crypto-trading.git
 cd crypto-trading
 ```
 
 2. 가상환경 생성 및 활성화
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
@@ -70,6 +72,7 @@ venv\Scripts\activate     # Windows
 ```
 
 3. 의존성 패키지 설치
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -86,6 +89,7 @@ pip install -r requirements.txt
 ## 사용 방법
 
 ### 백테스팅 실행
+
 ```bash
 # 기본 설정으로 백테스팅 실행
 python main.py --mode backtest --config config/settings.yaml
@@ -102,6 +106,7 @@ python main.py --mode backtest --config config/settings.yaml --strategy "bolling
 
 백테스팅에서 여러 전략을 사용할 경우, 시뮬레이션과 동일하게 과반수 기준으로 매매 결정이 이루어집니다.
 백테스팅 결과는 `results/` 디렉토리에 저장되며, 다음과 같은 정보를 포함합니다:
+
 - 전체 거래 내역
 - 수익률 분석
 - 포지션별 성과
@@ -109,6 +114,7 @@ python main.py --mode backtest --config config/settings.yaml --strategy "bolling
 - 드로다운 분석
 
 ### 실시간 시뮬레이션 실행
+
 ```bash
 # 기본 설정으로 시뮬레이션 실행 (BTC/USDT, 1분봉)
 python main.py --mode simulation --config config/settings.yaml --strategy bollinger
@@ -125,17 +131,20 @@ python main.py --mode simulation --config config/settings.yaml --account-id dumm
 
 시뮬레이션 실행 시 필요한 데이터베이스 테이블이 자동으로 생성됩니다.
 여러 전략을 동시에 사용할 경우, 각 전략의 신호를 종합하여 하나의 매매 결정을 내립니다:
+
 - 과반수의 전략이 매수 신호를 보내면 매수
 - 과반수의 전략이 매도 신호를 보내면 매도
 - 하나 이상의 전략이 청산 신호를 보내면 청산
 - 그 외의 경우 포지션 유지
 
 예를 들어, 3개의 전략을 사용할 경우:
+
 - 2개 이상의 전략이 매수 신호를 보내면 매수 포지션 진입
 - 2개 이상의 전략이 매도 신호를 보내면 매도 포지션 진입
 - 1개 이상의 전략이 청산 신호를 보내면 현재 포지션 청산
 
 ### 실시간 거래 실행
+
 ```bash
 # 기본 설정으로 실시간 거래 실행
 python main.py --mode live --config config/settings.yaml
@@ -148,11 +157,13 @@ nohup python main.py --mode live --config config/settings.yaml > trading.log 2>&
 ```
 
 ### 결과 확인
+
 - 백테스팅 결과는 `results/` 디렉토리에 저장됩니다
 - 거래 로그는 `logs/` 디렉토리에서 확인할 수 있습니다
 - 실시간 거래 상태는 웹 대시보드(http://localhost:8501)에서 모니터링할 수 있습니다
 
 ### 프로그램 종료
+
 ```bash
 # 실시간 거래 종료
 pkill -f "python main.py"
@@ -166,6 +177,7 @@ pkill -f "python main.py"
 4. `config/settings.yaml`에 전략 설정 추가
 
 예시 (볼린저 밴드 전략):
+
 ```python
 from .base_strategy import BaseStrategy
 
@@ -174,7 +186,7 @@ class BollingerStrategy(BaseStrategy):
         super().__init__(params)
         self.window = params.get('window', 20)
         self.std_dev = params.get('std_dev', 2.0)
-        
+
     def calculate_signals(self, data):
         # 볼린저 밴드 계산
         bb = ta.volatility.BollingerBands(
@@ -182,17 +194,18 @@ class BollingerStrategy(BaseStrategy):
             window=self.window,
             window_dev=self.std_dev
         )
-        
+
         # 매매 신호 생성
         if price < lower_band:
             return {'direction': 'long', 'strength': 0.8}
         elif price > upper_band:
             return {'direction': 'short', 'strength': 0.8}
-        
+
         return {'direction': None, 'strength': 0}
 ```
 
 설정 예시:
+
 ```yaml
 strategies:
   bollinger:
@@ -213,6 +226,7 @@ strategies:
 ## 성과 분석
 
 백테스팅 결과는 다음 지표들을 포함합니다:
+
 - 총 수익률
 - 승률
 - 수익 팩터
@@ -221,6 +235,7 @@ strategies:
 - 평균 거래 기간
 
 또한 다음 시각화를 제공합니다:
+
 - 자본금 변화 곡선
 - 드로다운 차트
 - 월별 수익률 히트맵
@@ -228,14 +243,17 @@ strategies:
 ## 데이터베이스 구조
 
 ### dummy_accounts
+
 - 시뮬레이션용 더미 계정 정보
 - 초기 자본금 및 현재 잔고 관리
 
 ### dummy_positions
+
 - 현재 보유 중인 포지션 정보
 - 진입가, 현재가, 미실현 손익 등
 
 ### dummy_trades
+
 - 거래 내역
 - 실현 손익, 수수료, 사용된 전략 등
 
@@ -248,17 +266,17 @@ strategies:
   ma_crossover:
     short_window: 10
     long_window: 20
-    
+
   rsi:
     period: 14
     oversold: 30
     overbought: 70
-    
+
   macd:
     fast_period: 12
     slow_period: 26
     signal_period: 9
-    
+
   bollinger:
     window: 20
     std_dev: 2.0
@@ -269,21 +287,125 @@ strategies:
 각 전략의 주요 파라미터:
 
 ### MA Crossover Strategy
+
 - `short_window`: 단기 이동평균 기간
 - `long_window`: 장기 이동평균 기간
 
 ### RSI Strategy
+
 - `period`: RSI 계산 기간
 - `oversold`: 과매도 기준값
 - `overbought`: 과매수 기준값
 
 ### MACD Strategy
+
 - `fast_period`: 단기 EMA 기간
 - `slow_period`: 장기 EMA 기간
 - `signal_period`: 시그널 라인 기간
 
 ### Bollinger Bands Strategy
+
 - `window`: 이동평균 기간
 - `std_dev`: 표준편차 승수
 - `entry_threshold`: 진입 임계값
 - `exit_threshold`: 청산 임계값
+
+## 백테스트 실행 방법
+
+### 1. 설정 파일 준비
+
+`config/settings.yaml` 파일에 다음과 같이 설정을 작성합니다:
+
+```yaml
+# 백테스트 설정
+backtest:
+  start_date: "2024-01-01" # 백테스트 시작일
+  end_date: "2024-01-23" # 백테스트 종료일
+  initial_balance: 10000 # 초기 자본금 (USDT)
+  commission: 0.001 # 수수료 (0.1%)
+
+# 거래 설정
+trading:
+  symbol: "BTCUSDT" # 거래 페어
+  interval: "1h" # 캔들 간격 (1m, 5m, 15m, 1h, 4h, 1d)
+
+# 전략 설정
+strategies:
+  ma_crossover: # 이동평균 크로스오버 전략
+    short_window: 10 # 단기 이동평균 기간
+    long_window: 20 # 장기 이동평균 기간
+    ma_type: "sma" # 이동평균 타입 (sma 또는 ema)
+
+  rsi: # RSI 전략
+    rsi_period: 14 # RSI 계산 기간
+    oversold: 30 # 과매도 기준값
+    overbought: 70 # 과매수 기준값
+
+  macd: # MACD 전략
+    fast_period: 12 # 단기 EMA 기간
+    slow_period: 26 # 장기 EMA 기간
+    signal_period: 9 # 시그널 라인 기간
+
+# 데이터 설정
+data:
+  database: "data/market_data.db" # 시장 데이터 저장 경로
+  api_key: "" # Binance API 키 (선택사항)
+  api_secret: "" # Binance API 시크릿 (선택사항)
+
+# 로깅 설정
+logging:
+  level: "INFO"
+  file: "logs/trading.log"
+```
+
+### 2. 백테스트 실행
+
+다음 명령어로 백테스트를 실행합니다:
+
+```bash
+python main.py --mode backtest --config config/settings.yaml
+```
+
+### 3. 결과 해석
+
+백테스트 실행 후 다음과 같은 결과가 출력됩니다:
+
+```
+=== Backtest Results ===
+Total Return: 수익률 (%)
+Win Rate: 승률 (%)
+Total Trades: 총 거래 횟수
+Profit Factor: 수익 팩터
+Sharpe Ratio: 샤프 비율
+Max Drawdown: 최대 낙폭 (%)
+Average Trade Duration: 평균 거래 기간
+=====================
+```
+
+또한 백테스트 결과를 시각화한 그래프가 자동으로 표시됩니다.
+
+## 지원하는 전략
+
+### 1. 이동평균 크로스오버 (MA Crossover)
+
+- 단기 이동평균이 장기 이동평균을 상향 돌파할 때 매수
+- 단기 이동평균이 장기 이동평균을 하향 돌파할 때 매도
+- SMA(단순 이동평균)와 EMA(지수 이동평균) 지원
+
+### 2. RSI (상대강도지수)
+
+- RSI가 과매도 수준 이하일 때 매수
+- RSI가 과매수 수준 이상일 때 매도
+- 기본값: 과매도 = 30, 과매수 = 70
+
+### 3. MACD (이동평균수렴확산)
+
+- MACD 라인이 시그널 라인을 상향 돌파할 때 매수
+- MACD 라인이 시그널 라인을 하향 돌파할 때 매도
+- 기본값: 단기=12, 장기=26, 시그널=9
+
+## 주의사항
+
+1. 백테스트 결과는 과거 데이터를 기반으로 하며, 미래의 수익을 보장하지 않습니다.
+2. 실제 거래에서는 슬리피지, 시장 영향 등 추가적인 요소들이 성과에 영향을 미칠 수 있습니다.
+3. 충분한 테스트와 검증 후에 실제 거래에 적용하시기 바랍니다.

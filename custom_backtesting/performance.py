@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
+from backtesting.lib import plot_heatmaps
 
 class PerformanceAnalyzer:
     def __init__(self, results: Dict[str, Any]):
@@ -67,20 +68,12 @@ class PerformanceAnalyzer:
         """월별 수익률 히트맵"""
         if self.trades_df.empty:
             return
-            
+        
         # 월별 수익률 계산
         monthly_returns = self._calculate_monthly_returns()
         
-        plt.figure(figsize=(12, 6))
-        sns.heatmap(monthly_returns.values.reshape(-1, 12),
-                   cmap='RdYlGn',
-                   center=0,
-                   annot=True,
-                   fmt='.2f')
-        plt.title('Monthly Returns (%)')
-        plt.xlabel('Month')
-        plt.ylabel('Year')
-        plt.show()
+        # backtesting 패키지의 plot_heatmaps 사용
+        plot_heatmaps(monthly_returns, title='Monthly Returns (%)')
 
     def _calculate_equity_curve(self) -> pd.Series:
         """자본금 변화 곡선 계산"""

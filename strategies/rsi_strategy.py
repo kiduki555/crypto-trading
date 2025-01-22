@@ -1,57 +1,44 @@
 from typing import Dict, Any
 import pandas as pd
-import ta
-from .base_strategy import BaseStrategy
+import numpy as np
+from backtesting import Strategy
 
-class RSIStrategy(BaseStrategy):
-    def __init__(self, params: Dict[str, Any]):
-        """
-        RSI 전략 초기화
-        
-        Args:
-            params: {
-                'rsi_period': RSI 기간,
-                'oversold_threshold': 과매도 기준값,
-                'overbought_threshold': 과매수 기준값
-            }
-        """
-        super().__init__(params)
-        self.rsi_period = params.get('rsi_period', 14)
-        self.oversold = params.get('oversold_threshold', 30)
-        self.overbought = params.get('overbought_threshold', 70)
+class RSIStrategy(Strategy):
+    # 클래스 변수로 파라미터 정의
+    rsi_period = 14
+    oversold = 30
+    overbought = 70
+    position_size = 0.3  # 레버리지를 포함한 포지션 크기 (자본금의 30%)
 
-    def calculate_signals(self, data: pd.DataFrame) -> Dict[str, Any]:
-        """
-        RSI 기반 매매 신호 계산
-        
-        Args:
-            data: OHLCV 데이터
-        Returns:
-            매매 신호 정보
-        """
-        if not self._validate_data(data):
-            return {'direction': None, 'strength': 0}
-
+    def init(self):
+        """전략 초기화"""
         # RSI 계산
-        rsi = ta.momentum.RSIIndicator(
-            close=data['close'], 
-            window=self.rsi_period
-        ).rsi()
+        close = pd.Series(self.data.Close)
+        delta = close.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=self.rsi_period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=self.rsi_period).mean()
+        rs = gain / loss
+        self.rsi = self.I(lambda: 100 - (100 / (1 + rs)))
 
-        current_rsi = rsi.iloc[-1]
+    def next(self):
+        """매 캔들마다 호출되는 메서드"""
+        # 포지션이 없을 때
+        if not self.position:
+            # 과매도 상태에서 매수
+            if self.rsi[-1] < self.oversold:
+                self.buy(size=self.position_size)
+            # 과매수 상태에서 매도
+            elif self.rsi[-1] > self.overbought:
+                self.sell(size=self.position_size)
         
-        # 신호 생성
-        if current_rsi < self.oversold:
-            return {
-                'direction': 'long',
-                'strength': (self.oversold - current_rsi) / self.oversold,
-                'rsi': current_rsi
-            }
-        elif current_rsi > self.overbought:
-            return {
-                'direction': 'short',
-                'strength': (current_rsi - self.overbought) / (100 - self.overbought),
-                'rsi': current_rsi
-            }
+        # 롱 포지션 보유 중
+        elif self.position.is_long:
+            # 과매수 상태에서 청산
+            if self.rsi[-1] > self.overbought:
+                self.position.close()
         
-        return {'direction': None, 'strength': 0, 'rsi': current_rsi}
+        # 숏 포지션 보유 중
+        elif self.position.is_short:
+            # 과매도 상태에서 청산
+            if self.rsi[-1] < self.oversold:
+                self.position.close()

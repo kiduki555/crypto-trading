@@ -2,9 +2,15 @@ exchange:
   name: "binance"
   testnet: true
 
+data:
+  api_key: ""
+  api_secret: ""
+  cache_dir: "data/cache"
+  database: "data/market_data.db"
+
 trading:
   symbol: "BTCUSDT"
-  interval: "1m"
+  interval: "15m"
   base_currency: "BTC"
   quote_currency: "USDT"
 
@@ -12,17 +18,17 @@ strategies:
   ma_crossover:
     short_window: 10
     long_window: 20
-    
+
   rsi:
     period: 14
     oversold: 30
     overbought: 70
-    
-  # macd:
-  #   fast_period: 12
-  #   slow_period: 26
-  #   signal_period: 9
-    
+
+  macd:
+    fast_period: 12
+    slow_period: 26
+    signal_period: 9
+
   bollinger:
     window: 20
     std_dev: 2.0
@@ -30,21 +36,22 @@ strategies:
     exit_threshold: 0.5
 
 risk_management:
-  risk_per_trade: 0.01  # 1%
+  risk_per_trade: 0.01 # 1%
   max_leverage: 3
-  margin_ratio: 0.1  # 10%
+  margin_ratio: 0.1 # 10%
   stop_loss_atr_multiplier: 2.0
   take_profit_atr_multiplier: 3.0
-  trailing_stop_start: 0.01  # 1%
+  trailing_stop_start: 0.01 # 1%
 
 backtest:
   start_date: "2023-01-01"
   end_date: "2023-12-31"
-  initial_balance: 10000
+  initial_balance: 1000000
+  commission: 0.001 # 0.1%
 
 simulation:
   initial_balance: 1000
-  commission_rate: 0.001  # 0.1%
+  commission_rate: 0.001 # 0.1%
 
 logging:
   level: "INFO"
@@ -52,4 +59,4 @@ logging:
 
 database:
   path: "data/market_data.db"
-  cache_size: 1000 
+  cache_size: 1000
